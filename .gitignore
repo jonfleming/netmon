@@ -1,0 +1,84 @@
+# .gitignore for .NET / Visual Studio / VS Code / JetBrains Rider projects
+# Recommended ignores for C# projects using the dotnet CLI, Visual Studio, VS Code, or Rider.
+
+## Build output
+[Bb]in/
+[Oo]bj/
+out/
+publish/
+artifacts/
+Debug/
+Release/
+
+## Visual Studio and VS Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Rider / IntelliJ
+.idea/
+*.sln.iml
+*.iml
+
+## NuGet
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+# NuGet package cache and other artifacts
+.nuget/packages/
+.nuget/*
+
+## Dotnet User Secrets / local settings
+secrets.json
+appsettings.Development.json
+local.settings.json
+appsettings.*.Local.json
+
+## Test results, coverage and profiling output
+TestResults/
+*.trx
+*.coverage
+coverage/
+*.coveragexml
+*.prof
+
+## Tools and caches
+*.ncrunch*
+_ReSharper*/
+*.ReSharper
+*.DotSettings.user
+*.dotCover
+*.cache
+*.log
+
+## OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+## Misc
+node_modules/
+.vagrant/
+.env
+.env.*
+
+# Ignore any temporary files
+*.tmp
+*.temp
+~$*
+*.bak
+
+# Ignore publish and installer artifacts
+*.Publish.xml
+*.msix
+
+# Ignore logs and crash dumps
+*.log
+*.dmp
+
+# End of file
