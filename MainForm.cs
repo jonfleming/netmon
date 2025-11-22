@@ -12,10 +12,9 @@ namespace NetMon
     public class MainForm : Form
     {
         private Button toggleButton = null!;
-        private Button checkNowButton = null!;
         private Label statusLabel = null!;
-        private Label lastCheckedLabel = null!;
-        private NumericUpDown intervalNumeric = null!;
+        private LightIndicator statusLight = null!;
+        private CheckBox alwaysOnTopCheck = null!;
 
         private CancellationTokenSource? _cts;
         private HttpClient _httpClient;
@@ -35,19 +34,28 @@ namespace NetMon
 
         private void InitializeComponents()
         {
-            this.Text = "NetMon - Internet Monitor";
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
+            this.Text = "NetMon";
+            this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
             this.MaximizeBox = false;
-            this.ClientSize = new Size(380, 170);
+            this.ClientSize = new Size(240, 90);
+            this.TopMost = false;
+
+            // Circular status light (green = connected, red = disconnected)
+            statusLight = new LightIndicator()
+            {
+                Location = new Point(12, 12),
+                Size = new Size(24, 24),
+            };
+            this.Controls.Add(statusLight);
 
             statusLabel = new Label()
             {
                 Text = "Status: Unknown",
-                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 AutoSize = false,
-                Size = new Size(340, 48),
-                Location = new Point(20, 20),
-                TextAlign = ContentAlignment.MiddleCenter,
+                Size = new Size(160, 48),
+                Location = new Point(72, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent,
                 ForeColor = Color.Gray
             };
@@ -56,53 +64,30 @@ namespace NetMon
             toggleButton = new Button()
             {
                 Text = "Start",
-                Location = new Point(20, 80),
-                Size = new Size(120, 40),
+                Location = new Point(12, 50),
+                Size = new Size(90, 28),
             };
             toggleButton.Click += ToggleButton_Click;
             this.Controls.Add(toggleButton);
 
-            checkNowButton = new Button()
+            alwaysOnTopCheck = new CheckBox()
             {
-                Text = "Check Now",
-                Location = new Point(150, 80),
-                Size = new Size(100, 40),
+                Text = "Always on Top",
+                Location = new Point(112, 54),
+                AutoSize = true,
             };
-            checkNowButton.Click += CheckNowButton_Click;
-            this.Controls.Add(checkNowButton);
-
-            var intervalLabel = new Label()
+            // When checked, set TopMost and make the window semi-transparent. When unchecked, restore opacity.
+            alwaysOnTopCheck.CheckedChanged += (s, e) =>
             {
-                Text = "Interval (s):",
-                Location = new Point(20, 130),
-                Size = new Size(80, 20),
-                TextAlign = ContentAlignment.MiddleLeft,
+                this.TopMost = alwaysOnTopCheck.Checked;
+                this.Opacity = this.TopMost ? 0.85 : 1.0;
             };
-            this.Controls.Add(intervalLabel);
+            this.Controls.Add(alwaysOnTopCheck);
 
-            intervalNumeric = new NumericUpDown()
-            {
-                Minimum = 1,
-                Maximum = 3600,
-                Value = 5,
-                Location = new Point(110, 128),
-                Size = new Size(60, 24),
-            };
-            this.Controls.Add(intervalNumeric);
-
-            lastCheckedLabel = new Label()
-            {
-                Text = "Last check: never",
-                Location = new Point(180, 128),
-                Size = new Size(180, 24),
-                TextAlign = ContentAlignment.MiddleLeft,
-            };
-            this.Controls.Add(lastCheckedLabel);
-
-            this.FormClosing += MainForm_FormClosing;
+             this.FormClosing += MainForm_FormClosing;
         }
 
-        private async void ToggleButton_Click(object sender, EventArgs e)
+        private void ToggleButton_Click(object? sender, EventArgs? e)
         {
             if (!_isMonitoring)
             {
@@ -123,13 +108,6 @@ namespace NetMon
             }
         }
 
-        private async void CheckNowButton_Click(object sender, EventArgs e)
-        {
-            bool connected = await IsInternetAvailableAsync();
-            UpdateStatus(connected);
-            if (!connected) StartAlarm(); else StopAlarm();
-        }
-
         private async Task StartMonitoring(CancellationToken token)
         {
             try
@@ -140,8 +118,8 @@ namespace NetMon
                     UpdateStatus(connected);
                     if (!connected) StartAlarm(); else StopAlarm();
 
-                    int intervalSeconds = (int)intervalNumeric.Value;
-                    await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), token);
+                    // Hard-coded interval: 5 seconds
+                    await Task.Delay(TimeSpan.FromSeconds(5), token);
                 }
             }
             catch (TaskCanceledException)
@@ -183,7 +161,8 @@ namespace NetMon
             }
             statusLabel.Text = connected ? "Status: Connected" : "Status: Disconnected";
             statusLabel.ForeColor = connected ? Color.Green : Color.Red;
-            lastCheckedLabel.Text = "Last check: " + DateTime.Now.ToString("HH:mm:ss");
+            statusLight.On = connected;
+            
         }
 
         private void UpdateStatusUnknown()
@@ -195,7 +174,7 @@ namespace NetMon
             }
             statusLabel.Text = "Status: Unknown";
             statusLabel.ForeColor = Color.Gray;
-            lastCheckedLabel.Text = "Last check: never";
+            
         }
 
         private void StartAlarm()
@@ -277,11 +256,43 @@ namespace NetMon
             return ms;
         }
 
-        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        private void MainForm_FormClosing(object? sender, FormClosingEventArgs? e)
         {
             _cts?.Cancel();
             StopAlarm();
             _httpClient?.Dispose();
+        }
+
+        // Simple circular indicator control used to show connection status
+        private class LightIndicator : Control
+        {
+            private bool _on = false;
+            public bool On
+            {
+                get => _on;
+                set { _on = value; Invalidate(); }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                Color c = _on ? Color.LimeGreen : Color.DarkRed;
+                using (var b = new SolidBrush(c))
+                {
+                    e.Graphics.FillEllipse(b, 0, 0, this.Width - 1, this.Height - 1);
+                }
+                using (var p = new Pen(Color.Black, 1))
+                {
+                    e.Graphics.DrawEllipse(p, 0, 0, this.Width - 1, this.Height - 1);
+                }
+            }
+
+            protected override void OnResize(EventArgs e)
+            {
+                base.OnResize(e);
+                Invalidate();
+            }
         }
     }
 }
